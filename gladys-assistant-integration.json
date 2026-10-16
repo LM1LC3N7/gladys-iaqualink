@@ -1,177 +1,129 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Zodiac / Jandy iAquaLink",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Zodiac / Jandy iAquaLink pools: temperatures, pumps, heating, lights, eXO chlorinators.",
+    "fr": "Piscines Zodiac / Jandy iAquaLink : températures, pompes, chauffage, éclairage, électrolyseurs eXO."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-iaqualink:0.1.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-iaqualink/main/cover.png",
+  "categories": ["appliances", "environment"],
+  "transports": ["cloud"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Your iAquaLink pool",
+        "fr": "Votre piscine iAquaLink"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Brings your iAquaLink pool systems into Gladys through the iAquaLink cloud: Jandy iAquaLink panels (pool, spa and air temperatures, pumps, heaters and set points, lights, auxiliaries) and Zodiac eXO iQ chlorinators (chlorine production, boost, pH, ORP, water temperature, status). Enter the email and password of your iAquaLink app account, then add your systems from the Discovery tab. The cloud is read every minute by default (30 seconds at the fastest), with longer pauses after errors. Unofficial, not affiliated with Zodiac, Jandy or Fluidra; never tested on a real system yet.",
+        "fr": "Amène vos systèmes de piscine iAquaLink dans Gladys par le cloud iAquaLink : coffrets Jandy iAquaLink (températures piscine, spa et air, pompes, chauffages et consignes, éclairages, auxiliaires) et électrolyseurs Zodiac eXO iQ (production de chlore, boost, pH, redox, température de l'eau, état). Saisissez l'e-mail et le mot de passe de votre compte de l'application iAquaLink, puis ajoutez vos systèmes depuis l'onglet Découverte. Le cloud est lu chaque minute par défaut (30 secondes au plus vite), avec des pauses plus longues après une erreur. Non officiel, sans lien avec Zodiac, Jandy ou Fluidra ; jamais testé sur un vrai système pour l'instant."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/LM1LC3N7/gladys-iaqualink/blob/main/docs/fr.md",
+          "label": { "en": "Guide (French)", "fr": "Guide (français)" }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-iaqualink/blob/main/docs/en.md",
+          "label": { "en": "Guide (English)", "fr": "Guide (anglais)" }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
+      "key": "email",
+      "type": "string",
+      "label": { "en": "iAquaLink email", "fr": "E-mail iAquaLink" },
       "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+        "en": "The email you sign in to the iAquaLink app with.",
+        "fr": "L'e-mail avec lequel vous vous connectez à l'application iAquaLink."
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "placeholder": { "en": "you@example.com", "fr": "vous@exemple.fr" },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
+      "key": "password",
+      "type": "secret",
+      "label": { "en": "iAquaLink password", "fr": "Mot de passe iAquaLink" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "Kept by Gladys, sent only to the iAquaLink sign-in service, never shown again nor logged.",
+        "fr": "Conservé par Gladys, envoyé uniquement au service de connexion iAquaLink, jamais réaffiché ni journalisé."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
-      "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "required": true
     },
     {
-      "key": "unit",
-      "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "allow_commands",
+      "type": "boolean",
+      "label": {
+        "en": "Allow commands from Gladys",
+        "fr": "Autoriser les commandes depuis Gladys"
+      },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Pumps, heaters, set points, lights, auxiliaries and chlorinator switches. Untick to only read the pool. Each command reads the state again just before it is sent.",
+        "fr": "Pompes, chauffages, consignes, éclairages, auxiliaires et commandes de l'électrolyseur. Décochez pour seulement lire la piscine. Chaque commande relit l'état juste avant d'être envoyée."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
+      "default": true
+    },
+    {
+      "key": "include_unnamed_aux",
+      "type": "boolean",
+      "label": {
+        "en": "Show the unnamed auxiliaries",
+        "fr": "Afficher les auxiliaires sans nom"
+      },
+      "description": {
+        "en": "Auxiliaries still named \"Aux 3\", \"Aux V12\" or \"Extra Aux\" on the panel are usually unused: they are left out unless this box is ticked.",
+        "fr": "Les auxiliaires encore nommés « Aux 3 », « Aux V12 » ou « Extra Aux » sur le coffret sont en général inutilisés : ils sont ignorés sauf si cette case est cochée."
+      },
+      "required": false,
+      "default": false
+    },
+    {
+      "key": "refresh_interval",
+      "type": "number",
+      "label": {
+        "en": "Refresh interval (seconds)",
+        "fr": "Intervalle de rafraîchissement (secondes)"
+      },
+      "description": {
+        "en": "How often the pool is read: 30 seconds at the fastest, to stay gentle with the iAquaLink cloud.",
+        "fr": "Fréquence de lecture de la piscine : 30 secondes au plus vite, pour ménager le cloud iAquaLink."
+      },
+      "required": false,
+      "default": 60,
+      "min": 30,
       "max": 3600
+    },
+    {
+      "key": "language",
+      "type": "select",
+      "label": {
+        "en": "Language of the feature names",
+        "fr": "Langue des noms des fonctionnalités"
+      },
+      "description": {
+        "en": "Used for the names of the features of the systems added from now on, and for the status text.",
+        "fr": "Sert aux noms des fonctionnalités des systèmes ajoutés désormais, et au texte d'état."
+      },
+      "required": false,
+      "default": "fr",
+      "options": [
+        { "value": "fr", "label": { "en": "French", "fr": "Français" } },
+        { "value": "en", "label": { "en": "English", "fr": "Anglais" } }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
-    }
-  ],
-  "scene_triggers": [
-    {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
-      },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
-        }
-      ],
-      "variables": [
-        {
-          "key": "target",
-          "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
-        }
-      ]
-    }
-  ],
-  "scene_actions": [
-    {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
-      },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
-        }
-      ]
-    }
-  ],
-  "widgets": [
-    {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
-      "icon": "activity",
-      "action_timeout_seconds": 15
+      "key": "test_connection",
+      "label": { "en": "Test the connection", "fr": "Tester la connexion" },
+      "timeout_seconds": 90
     }
   ]
 }

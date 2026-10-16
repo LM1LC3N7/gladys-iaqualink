@@ -1,61 +1,99 @@
-# Demo Devices Template
+# Zodiac / Jandy iAquaLink for Gladys Assistant
 
-This is the user documentation of the integration. Gladys re-hosts this file
-and shows a permanent **Documentation** link to it in the Configuration screen
-(in the user's language, with English as the fallback) — it is when
-configuring that the user needs it most. Keep the short onboarding hints in
-the `section` blocks of the manifest `config_schema`; put the long
-step-by-step (screenshots, troubleshooting…) here.
+Brings your iAquaLink pool systems into Gladys, through the iAquaLink cloud
+(the one of the iAquaLink mobile app):
 
-## What you get
+- **Jandy iAquaLink panels** (iQ20, AquaLink RS with an iAquaLink module):
+  pool, spa and air temperatures, pool and spa pumps, pool, spa and solar
+  heaters, pool and spa set points, lights (on/off, brightness of dimmable
+  lights), auxiliary outputs, and pH, ORP and salinity when the panel reports
+  them;
+- **Zodiac eXO iQ chlorinators**: water temperature, pH, ORP, their set
+  points, chlorine production level, chlorine production on/off, boost, low
+  mode, filter pump, auxiliary outputs, heating (on/off and set point) when a
+  heating module is present, and a status text (error code, low salt).
 
-Six demo devices show up after installation: a weather station (real data
-from Open-Meteo), a switch, a dimmable light, a smart plug with power
-metering, a motion sensor and a camera.
+> This integration has **never been tested on a real iAquaLink account or
+> system yet**: it is a port of the
+> [iaqualink-py](https://github.com/flz/iaqualink-py) library used by Home
+> Assistant, checked against sample answers only. Feedback is welcome on the
+> [Gladys forum](https://community.gladysassistant.com/t/10385).
+>
+> Unofficial: not affiliated with Zodiac, Jandy or Fluidra.
 
-## Configuration
+## Set up
 
-1. Open the **Configuration** tab of the integration.
-2. Set the **latitude** and **longitude** the demo weather station should
-   observe (they default to Paris), and pick your temperature unit.
-   The **refresh interval** sets how often the weather station and the
-   plug's power are read: every 5 minutes by default, every minute at most.
-3. Save: the devices appear in the **Discovery** tab, ready to be added.
+1. In Gladys, open **Integrations**, install **Zodiac / Jandy iAquaLink**.
+2. In its configuration, enter the **email** and **password** of your
+   iAquaLink account (the ones you use in the iAquaLink app). The password is
+   a secret field: Gladys never shows it again, and the integration sends it
+   only to the iAquaLink sign-in service.
+3. The status shows **Connected to iAquaLink** and the number of pool systems.
+   Open the **Discovery** tab and add your systems.
 
-The **Prefer the local connection** toggle drives the demo plug: it reports
-the channel it actually uses as a badge (local or cloud), with an orange dot
-when it runs degraded (local refused, cloud fallback).
+The **Test the connection** button signs in and reads the account at once (at
+most every 30 seconds), and gives a short summary.
 
-## Actions
+## Options
 
-- **Test the weather provider** — performs a live request to Open-Meteo and
-  shows the current temperature and humidity under the button.
-- **Identify a device** — pick one of your devices in the list and it will
-  signal itself (the demo light "blinks" in the logs).
+| Option                       | Default | What it does                                                                                                   |
+| ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+| Allow commands from Gladys   | on      | Untick to only read the pool: every command is then refused.                                                   |
+| Show the unnamed auxiliaries | off     | Auxiliaries still named "Aux 3", "Aux V12" or "Extra Aux" on the panel are left out unless this box is ticked. |
+| Refresh interval (seconds)   | 60      | How often the pool is read: 30 seconds at the fastest.                                                         |
+| Language                     | French  | Names of the features of the systems added from now on, and the status text.                                   |
 
-## Scenes
+## Limits of use
 
-The integration adds its own cards to the scene editor (Gladys 5.1 or
-later), under the **Integrations** category:
+- iAquaLink publishes no API nor quota: the integration uses the endpoints
+  of the iAquaLink app, like Home Assistant. It reads every system at the
+  refresh interval (two requests for a panel, one for an eXO), the list of
+  systems every 30 minutes, and never sends more than 20 requests a minute,
+  commands included.
+- After an error it waits 1, 2, 5, 10 then 15 minutes; when iAquaLink asks to
+  slow down (HTTP 429) it pauses for the time asked (15 minutes otherwise),
+  commands included.
+- A refused email or password is not tried again for 6 hours, or at once
+  after you change it (or with the Test button), so the account is not locked.
+- The session (IdToken) is renewed before it expires; a refused refresh token
+  leads to one new sign-in, never more than one every 5 minutes.
 
-- **Motion detected** (trigger) — starts the scene when a demo motion sensor
-  sees something move. Optionally pick the sensor and what moved (person,
-  animal); left empty, any detection matches. The following actions can
-  read what moved with `{{triggerEvent.data.target}}`.
-- **Identify a device** (action) — makes the chosen device signal itself.
-  It returns whether the device could signal itself, so the following
-  actions can depend on it.
+## How commands work
 
-## Dashboard
+The pumps, heaters and plain auxiliaries of an iAquaLink panel only know a
+**toggle** command. So, for each command, the integration:
 
-Add the **Demo status** widget to a dashboard: it shows the live
-temperature of the weather station and the power of the office plug, the
-connection the plug currently uses (orange when degraded) and the observed
-location. Its **Identify the light** button makes the demo light signal
-itself.
+1. reads the state of the panel again, right before;
+2. refuses when the panel is offline, or when the state of the equipment
+   cannot be read;
+3. sends nothing when the equipment is already in the asked state;
+4. otherwise toggles once, and refuses another toggle of the same equipment
+   for 30 seconds unless the panel already reports the change.
 
-## Troubleshooting
+Commands of one system run one at a time. Dimmable and colour lights, set
+points and every eXO command take an absolute value instead. Set points must
+stay between 1 and 40 °C (34 and 104 °F); a panel paired with a heat pump
+receives them through the heat pump command, like in the iAquaLink app.
 
-The integration logs everything it does: check the integration logs from the
-Gladys UI (or `docker logs` on the host) with `LOG_LEVEL=debug` for the full
-detail.
+A colour light turned on starts on its first colour (the effects are not
+handled yet).
+
+## Not supported yet
+
+- Robot cleaners (i2d, Vortex, Cyclobat), standalone Zodiac heat pumps and
+  iQPump: they are counted as "not supported yet" in the status.
+- OneTouch scenes, the variable-speed pumps of a panel, IntelliCenter light
+  zones, colour effects, the controls of a heat pump paired with a panel.
+
+## Privacy
+
+The email and password stay in the Gladys configuration. The integration
+keeps only, in its `/data` volume, the features and auxiliaries already seen
+and the temperature unit of each system, so the Discovery tab stays the same
+after a restart. No token or password is ever written to disk or to the logs.
+
+## Licence and credits
+
+Apache License 2.0. The iAquaLink logic is ported from
+[flz/iaqualink-py](https://github.com/flz/iaqualink-py) (BSD-3-Clause, see
+`THIRD_PARTY_NOTICES.md`).

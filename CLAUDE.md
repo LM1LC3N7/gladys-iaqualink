@@ -10,6 +10,7 @@ no build step) that runs in its own sandboxed Docker container and talks to
 Gladys through
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js),
 its only runtime dependency. It started from the official JavaScript template.
+It reads Zodiac / Jandy iAquaLink pool systems through the iAquaLink cloud.
 
 ## Commands
 
@@ -17,7 +18,7 @@ its only runtime dependency. It started from the official JavaScript template.
 npm install
 npm test                                  # node --test, the built-in runner
 node --test test/devices.test.js          # one file
-node --test --test-name-pattern "plug"    # tests whose name matches
+node --test --test-name-pattern "toggle"    # tests whose name matches
 npm run lint                              # ESLint
 npm run format:check                      # Prettier, as the CI runs it
 npm run format                            # Prettier, fix in place
@@ -31,18 +32,29 @@ pushing.
 ## Architecture
 
 ```
-index.js                          SDK wiring only: handlers registered before connect()
-src/devices/index.js              registry of the device blueprints + dispatch helpers
-src/devices/<type>.js             one device type per file (buildDevice, onPoll, onSetValue...)
-src/scenes.js                     scene action handlers (manifest `scene_actions`)
-src/widgets.js                    dashboard widget handlers (manifest `widgets`)
-src/config.js                     DEFAULT_CONFIG (mirrors the manifest defaults) + normalization
-src/weather.js                    example driver (Open-Meteo)
+index.js                          SDK wiring only (src/handlers.js registers before connect())
+src/app.js                        IaqualinkApp: scheduler, backoff, commands, status, badges
+src/iaqualink/http.js             the only network access (fetch), error classification
+src/iaqualink/client.js           sign-in, session renewal, device list, panel and eXO calls
+src/iaqualink/iaqua.js            iAquaLink panel screens and command parameters (pure)
+src/iaqualink/exo.js              eXO shadow and desired states (pure)
+src/devices.js                    systems -> Gladys devices and states (pure)
+src/budget.js                     our request ceiling (20/min, 1 s apart)
+src/publisher.js                  states to Gladys within 300/min
+src/store.js                      features seen per system, kept in /data
+src/config.js                     DEFAULTS (mirrors the manifest defaults) + normalization
+src/i18n.js                       English and French texts
 gladys-assistant-integration.json manifest: name, config_schema, actions, image...
 docs/en.md, docs/fr.md            user documentation, re-hosted by Gladys (mandatory)
-test/                             node --test, against the SDK's fake Gladys (integration-sdk/testing)
+scripts/cover.mjs                 generates cover.png (800×534), no dependency
+test/                             node --test, SDK fake Gladys + fake iAquaLink cloud
 .github/scripts/release.mjs       release helpers (manifest bump, changelog), tested in test/
 ```
+
+The iAquaLink logic is a port of flz/iaqualink-py (BSD-3-Clause): keep
+`THIRD_PARTY_NOTICES.md` (copied into the image) when porting more of it.
+Panel commands are toggles: every command reads the state again first (see
+TODO.md "Decisions").
 
 ## Rules
 
@@ -57,7 +69,8 @@ test/                             node --test, against the SDK's fake Gladys (in
 - **Versions belong to the Release workflow** (Actions → Release). Never edit
   `version` in `package.json` or in the manifest, nor the `docker_image` tag,
   by hand — except on the README's hand-pushed tag path, which bumps all three
-  together before tagging. `test/manifest.test.js` checks they agree.
+  together before tagging. `test/manifest.test.js` checks they agree. (The
+  one exception so far: 0.1.0 set by hand at milestone 1, see TODO.md.)
 - **Changelog.** Every user-visible change adds a line under `## [Unreleased]`
   in `CHANGELOG.md` (`### Added`, `Changed`, `Fixed`, `Removed`, `Security`).
   Never write a version heading: the Release workflow moves the section, and it

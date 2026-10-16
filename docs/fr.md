@@ -1,67 +1,109 @@
-# Template de démonstration
+# Zodiac / Jandy iAquaLink pour Gladys Assistant
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Amène vos systèmes de piscine iAquaLink dans Gladys, par le cloud iAquaLink
+(celui de l'application mobile iAquaLink) :
 
-## Ce que vous obtenez
+- **coffrets Jandy iAquaLink** (iQ20, AquaLink RS avec module iAquaLink) :
+  températures de la piscine, du spa et de l'air, pompes piscine et spa,
+  chauffages piscine, spa et solaire, consignes piscine et spa, éclairages
+  (marche/arrêt, luminosité des éclairages variables), sorties auxiliaires,
+  et pH, redox et salinité quand le coffret les remonte ;
+- **électrolyseurs Zodiac eXO iQ** : température de l'eau, pH, redox (ORP),
+  leurs consignes, niveau de production de chlore, production de chlore
+  marche/arrêt, boost, mode réduit, pompe de filtration, sorties auxiliaires,
+  chauffage (marche/arrêt et consigne) quand un module de chauffage est
+  présent, et un texte d'état (code d'erreur, sel insuffisant).
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+> Cette intégration n'a **jamais été testée sur un vrai compte ni sur un vrai
+> système iAquaLink** pour l'instant : c'est un portage de la bibliothèque
+> [iaqualink-py](https://github.com/flz/iaqualink-py) utilisée par Home
+> Assistant, vérifié uniquement sur des réponses d'exemple. Vos retours sont
+> les bienvenus sur le
+> [forum Gladys](https://community.gladysassistant.com/t/10385).
+>
+> Non officielle : sans lien avec Zodiac, Jandy ou Fluidra.
 
-## Configuration
+## Mise en place
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+1. Dans Gladys, ouvrez **Intégrations** et installez **Zodiac / Jandy
+   iAquaLink**.
+2. Dans sa configuration, saisissez l'**e-mail** et le **mot de passe** de
+   votre compte iAquaLink (ceux de l'application iAquaLink). Le mot de passe
+   est un champ secret : Gladys ne le réaffiche jamais, et l'intégration ne
+   l'envoie qu'au service de connexion iAquaLink.
+3. L'état indique **Connecté à iAquaLink** et le nombre de systèmes de
+   piscine. Ouvrez l'onglet **Découverte** et ajoutez vos systèmes.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Le bouton **Tester la connexion** se connecte et lit le compte tout de suite
+(au plus toutes les 30 secondes), puis donne un court résumé.
 
-## Actions
+## Options
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+| Option                                | Par défaut | Effet                                                                                                                            |
+| ------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Autoriser les commandes depuis Gladys | oui        | Décochez pour seulement lire la piscine : toute commande est alors refusée.                                                      |
+| Afficher les auxiliaires sans nom     | non        | Les auxiliaires encore nommés « Aux 3 », « Aux V12 » ou « Extra Aux » sur le coffret sont ignorés sauf si cette case est cochée. |
+| Intervalle de rafraîchissement (s)    | 60         | Fréquence de lecture de la piscine : 30 secondes au plus vite.                                                                   |
+| Langue                                | français   | Noms des fonctionnalités des systèmes ajoutés désormais, et texte d'état.                                                        |
 
-## Scènes
+## Limites d'usage
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+- iAquaLink ne publie ni API ni quota : l'intégration utilise les adresses de
+  l'application iAquaLink, comme Home Assistant. Elle lit chaque système à
+  l'intervalle choisi (deux requêtes pour un coffret, une pour un eXO), la
+  liste des systèmes toutes les 30 minutes, et n'envoie jamais plus de
+  20 requêtes par minute, commandes comprises.
+- Après une erreur, elle attend 1, 2, 5, 10 puis 15 minutes ; quand iAquaLink
+  demande de ralentir (HTTP 429), elle fait la pause demandée (15 minutes
+  sinon), commandes comprises.
+- Un e-mail ou un mot de passe refusé n'est pas réessayé avant 6 heures, ou
+  aussitôt après leur modification (ou avec le bouton de test), pour ne pas
+  bloquer le compte.
+- La session (IdToken) est renouvelée avant son expiration ; un jeton de
+  renouvellement refusé entraîne une seule nouvelle connexion, jamais plus
+  d'une toutes les 5 minutes.
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+## Fonctionnement des commandes
 
-## Tableau de bord
+Les pompes, chauffages et auxiliaires simples d'un coffret iAquaLink ne
+connaissent qu'une commande de **bascule**. Pour chaque commande,
+l'intégration :
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+1. relit l'état du coffret juste avant ;
+2. refuse si le coffret est hors ligne, ou si l'état de l'équipement ne peut
+   pas être lu ;
+3. n'envoie rien si l'équipement est déjà dans l'état demandé ;
+4. sinon bascule une fois, et refuse une autre bascule du même équipement
+   pendant 30 secondes, sauf si le coffret signale déjà le changement.
 
-## Dépannage
+Les commandes d'un même système passent une par une. Les éclairages variables
+et de couleur, les consignes et toutes les commandes de l'eXO prennent une
+valeur absolue. Les consignes doivent rester entre 1 et 40 °C (34 et 104 °F) ;
+un coffret associé à une pompe à chaleur les reçoit par la commande de la
+pompe à chaleur, comme dans l'application iAquaLink.
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+Un éclairage de couleur allumé démarre sur sa première couleur (les effets ne
+sont pas encore gérés).
+
+## Pas encore pris en charge
+
+- Robots nettoyeurs (i2d, Vortex, Cyclobat), pompes à chaleur Zodiac
+  autonomes et iQPump : ils sont comptés comme « pas encore pris en charge »
+  dans l'état.
+- Scènes OneTouch, pompes à vitesse variable d'un coffret, zones d'éclairage
+  IntelliCenter, effets de couleur, commandes d'une pompe à chaleur associée
+  à un coffret.
+
+## Confidentialité
+
+L'e-mail et le mot de passe restent dans la configuration de Gladys.
+L'intégration garde seulement, dans son volume `/data`, les fonctionnalités
+et auxiliaires déjà vus et l'unité de température de chaque système, pour que
+l'onglet Découverte reste identique après un redémarrage. Aucun jeton ni mot
+de passe n'est jamais écrit sur disque ni dans les journaux.
+
+## Licence et crédits
+
+Licence Apache 2.0. La logique iAquaLink est portée de
+[flz/iaqualink-py](https://github.com/flz/iaqualink-py) (BSD-3-Clause, voir
+`THIRD_PARTY_NOTICES.md`).
