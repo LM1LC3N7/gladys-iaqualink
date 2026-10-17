@@ -68,9 +68,12 @@ si les commander depuis Gladys est sans danger pour votre installation.
   bloquer le compte.
 - La session (IdToken) est renouvelée avant son expiration ; un jeton de
   renouvellement refusé entraîne une seule nouvelle connexion, jamais plus
-  d'une toutes les 5 minutes. Après trois connexions échouées de suite (pas
-  de réponse, erreur), le prochain essai attend 6 heures, une modification de
-  la configuration ou le bouton de test.
+  d'une toutes les 5 minutes. Une connexion sans aucune réponse (box internet
+  encore en démarrage après une coupure de courant...) suit les pauses
+  normales de 1 à 15 minutes. Après trois connexions de suite auxquelles le
+  service répond mal (erreur 5xx, réponse illisible), le prochain essai
+  attend 1 heure, ou une modification de l'e-mail ou du mot de passe, ou le
+  bouton « Tester la connexion ».
 
 ## Fonctionnement des commandes
 

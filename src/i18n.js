@@ -133,8 +133,8 @@ export const T = {
     fr: `iAquaLink est injoignable (${reason.fr}). Nouvel essai dans ${wait.fr}.`,
   }),
   loginFailing: (wait) => ({
-    en: `Signing in to iAquaLink failed several times in a row: next try in ${wait.en}, or at once after a change of the configuration.`,
-    fr: `La connexion à iAquaLink a échoué plusieurs fois de suite : nouvel essai dans ${wait.fr}, ou dès une modification de la configuration.`,
+    en: `Signing in to iAquaLink failed several times in a row: next try in ${wait.en}, or at once after a change of the email or the password, or with the "Test the connection" button.`,
+    fr: `La connexion à iAquaLink a échoué plusieurs fois de suite : nouvel essai dans ${wait.fr}, ou dès une modification de l'e-mail ou du mot de passe, ou avec le bouton « Tester la connexion ».`,
   }),
   rateLimited: (wait) => ({
     en: `iAquaLink asked to slow down: pausing for ${wait.en}.`,

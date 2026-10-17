@@ -48,8 +48,13 @@ const SUPPORTED = new Set(Object.values(SYSTEM_TYPES));
  * sent.
  */
 const MAY_HAVE_REACHED = new Set(['network', 'unavailable', 'bad_response']);
-/** Failures of a sign-in that count towards the long pause (not a refusal, not ours). */
-const LOGIN_FAILURES = new Set(['network', 'unavailable', 'bad_response', 'http', 'unauthorized']);
+/**
+ * Failures of a sign-in that count towards the long pause: the service
+ * answered, but badly (5xx, an unreadable answer). No answer at all
+ * (`network`: the internet box still starting after a power cut...) follows
+ * the normal backoff, 1 to 15 minutes.
+ */
+const LOGIN_FAILURES = new Set(['unavailable', 'bad_response']);
 
 const freshSeen = () => ({ features: new Set(), aux: new Map(), heatingRange: undefined });
 
@@ -406,8 +411,8 @@ export class IaqualinkApp {
       wait = this.pause(err);
       await this.setStatus(this.readAt !== undefined, T.rateLimited(age(wait)));
     } else if (this.loginFailures >= LIMITS.loginFailures) {
-      // The sign-in keeps failing: no hammering of the account endpoint.
-      wait = TIMINGS.refusedRetry;
+      // The sign-in service keeps answering badly: no hammering of it.
+      wait = TIMINGS.loginFailurePause;
       this.offline = true;
       await this.setStatus(false, T.loginFailing(age(wait)));
     } else {
@@ -577,7 +582,9 @@ export class IaqualinkApp {
     }
     // One command at a time per system: two "turn on" received together must
     // not both read "off" and send two toggles.
-    return this.serialized(system.serial, () => this.command(system, target.key, number));
+    // The 5 s of the ack run from now, also while waiting behind another command.
+    const received = this.now();
+    return this.serialized(system.serial, () => this.command(system, target.key, number, received));
   }
 
   /** Runs `task` after the previous task of the same key (a promise chain per key). */
@@ -621,8 +628,7 @@ export class IaqualinkApp {
     };
   }
 
-  async command(system, key, value) {
-    const started = this.now();
+  async command(system, key, value, started = this.now()) {
     try {
       if (system.type === SYSTEM_TYPES.IAQUA) {
         await this.iaquaCommand(system, key, value, started);

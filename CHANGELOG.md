@@ -31,7 +31,8 @@ the notes of the version's GitHub Release.
   reports the change sooner.
 - A panel switching between Celsius and Fahrenheit: values and set points
   converted to the unit of the features.
-- After three sign-ins failing in a row, a 6-hour pause.
+- After three sign-ins in a row answered by a server error, a one-hour pause
+  (a sign-in without any answer keeps the normal backoff).
 - Reads every minute by default (30 seconds at the fastest), at most 20
   requests a minute, longer pauses after errors and on HTTP 429.
 - Transport badges, a "Test the connection" button, feature names in French

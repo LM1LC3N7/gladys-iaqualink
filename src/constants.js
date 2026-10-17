@@ -86,10 +86,16 @@ export const TIMINGS = {
   rateLimitMin: 60_000,
   rateLimitMax: 60 * 60_000,
   /**
-   * Email or password refused, or LIMITS.loginFailures sign-ins failed in a
-   * row: one new try this late, or at once after a configuration change.
+   * Email or password refused: one new try this late, or at once after a
+   * change of them (or the Test button).
    */
   refusedRetry: 6 * 60 * 60_000,
+  /**
+   * LIMITS.loginFailures sign-ins in a row answered by a 5xx or an
+   * unreadable answer: one new try this late (no answer at all keeps the
+   * normal backoff).
+   */
+  loginFailurePause: 60 * 60_000,
   /**
    * After a toggle command (iAquaLink panels only know "toggle"), counted
    * from the end of its request: the equipment is expected in the other

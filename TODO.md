@@ -28,8 +28,10 @@ up to date at the end of every milestone.
   - [ ] the login and refresh answers (`ExpiresIn`, `RefreshToken` on
         refresh, `country`), and what a wrong password answers (400? 401?
         403? an HTML page, see `UNAUTHORIZED_HTML` in the fixtures?);
-  - [ ] **HTTP/1.1**: the Node `fetch` (HTTP/1.1 only) accepted by the
-        endpoints iaqualink-py reaches over HTTP/2;
+  - [x] **HTTP/1.1**: the Node `fetch` (HTTP/1.1 only) accepted by the
+        endpoints iaqualink-py reaches over HTTP/2 — anonymous probe of
+        2026-10-16: application 401s over HTTP/1.1 on prod.zodiac-io.com,
+        r-api and p-api, no protocol error;
   - [ ] eXO: pH in tenths (75 = 7.5) on every firmware, `ph_sp` too; the aux
         `type` values; the shadow `reported` catching up after a desired
         state (and whether `production` is the switch the app shows);
@@ -122,10 +124,13 @@ up to date at the end of every milestone.
   refused refresh token is dropped, then one sign-in; no automatic sign-in
   within 5 minutes of the last successful one; a refused password (400, 401
   or 403 on the login, except an HTML page of a busy CDN) waits 6 hours, a
-  configuration change, or the Test button. Three sign-ins failing in a row
-  for another reason (no answer, 5xx, unexpected answer) wait 6 hours too
-  (the counter resets on a successful read, a configuration change or the
-  Test button).
+  configuration change, or the Test button. Three sign-ins in a row answered
+  by a 5xx or an unreadable answer wait 1 hour (`loginFailurePause`; the
+  counter resets on a successful read, a change of the email or password, or
+  the Test button). A sign-in without any answer (`network`: an internet box
+  still starting after a power cut) only follows the normal backoff, 1 to
+  15 minutes (approval review, round 1). A command's 5 s ack budget runs from
+  its reception, waiting in the per-system queue included.
 - Rate: refresh 30 s minimum (60 s default); device list every 30 minutes;
   our own ceiling of 20 requests per minute, 1 s apart; backoff 1, 2, 5, 10,
   15 minutes; 429 pauses for Retry-After clamped to 1–60 minutes (15 by

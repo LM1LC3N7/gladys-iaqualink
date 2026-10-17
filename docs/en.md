@@ -63,9 +63,12 @@ for your installation.
 - A refused email or password is not tried again for 6 hours, or at once
   after you change it (or with the Test button), so the account is not locked.
 - The session (IdToken) is renewed before it expires; a refused refresh token
-  leads to one new sign-in, never more than one every 5 minutes. After three
-  sign-ins failing in a row (no answer, error), the next try waits 6 hours, or
-  a change of the configuration, or the Test button.
+  leads to one new sign-in, never more than one every 5 minutes. A sign-in
+  without any answer (internet box still starting after a power cut...)
+  follows the normal pauses of 1 to 15 minutes. After three sign-ins in a row
+  that the service answers badly (5xx error, unreadable answer), the next try
+  waits 1 hour, or a change of the email or the password, or the "Test the
+  connection" button.
 
 ## How commands work
 

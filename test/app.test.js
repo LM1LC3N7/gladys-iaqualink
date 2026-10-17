@@ -564,19 +564,37 @@ test('a system missing from one device list keeps its entry in /data', async (t)
   assert.ok(store.data.systems[EXO].features.includes('production'), 'kept');
 });
 
-test('three failed sign-ins in a row: a long pause', async (t) => {
+test('three sign-ins answered by a 5xx in a row: a one-hour pause', async (t) => {
   const server = fakeCloud();
-  server.fail('login', 503, { times: 5 });
+  server.fail('login', 503, { times: 3 });
   const { gladys, advance } = await setup(t, { server });
   await advance(60_000);
   await advance(2 * 60_000);
   assert.equal(server.calls('login').length, 3);
   assert.match(
     gladys.fake.connectionStatus.message.en,
-    /failed several times in a row: next try in 6 h/,
+    /failed several times in a row: next try in 60 min, or at once after a change of the email or the password, or with the "Test the connection" button/,
   );
   await advance(30 * 60_000);
   assert.equal(server.calls('login').length, 3);
+  await advance(30 * 60_000);
+  assert.equal(server.calls('login').length, 4);
+  assert.equal(gladys.fake.connectionStatus.connected, true);
+});
+
+test('three sign-ins without any answer (box still starting): the normal backoff, then the reads', async (t) => {
+  const server = fakeCloud();
+  server.fail('login', 0, { times: 3 });
+  const { gladys, advance } = await setup(t, { server });
+  await advance(60_000);
+  await advance(2 * 60_000);
+  assert.equal(server.calls('login').length, 3);
+  assert.match(gladys.fake.connectionStatus.message.en, /cannot be reached.*Next try in 5 min/);
+  await advance(5 * 60_000);
+  assert.equal(server.calls('login').length, 4);
+  assert.equal(gladys.fake.connectionStatus.connected, true);
+  assert.ok(server.calls('get_home').length >= 1);
+  assert.equal(gladys.fake.discoveredDevices.length, 2);
 });
 
 test('no secret in the logs', async (t) => {
