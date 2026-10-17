@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-17
+
 ### Added
 
 - iAquaLink account (email and password of the iAquaLink app), through the
@@ -38,4 +40,5 @@ the notes of the version's GitHub Release.
 - Transport badges, a "Test the connection" button, feature names in French
   or English.
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-iaqualink/commits/main
+[Unreleased]: https://github.com/LM1LC3N7/gladys-iaqualink/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-iaqualink/releases/tag/v0.1.1
