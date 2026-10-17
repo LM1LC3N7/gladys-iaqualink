@@ -36,12 +36,19 @@ most every 30 seconds), and gives a short summary.
 
 ## Options
 
-| Option                       | Default | What it does                                                                                                   |
-| ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
-| Allow commands from Gladys   | on      | Untick to only read the pool: every command is then refused.                                                   |
-| Show the unnamed auxiliaries | off     | Auxiliaries still named "Aux 3", "Aux V12" or "Extra Aux" on the panel are left out unless this box is ticked. |
-| Refresh interval (seconds)   | 60      | How often the pool is read: 30 seconds at the fastest.                                                         |
-| Language                     | French  | Names of the features of the systems added from now on, and the status text.                                   |
+| Option                           | Default | What it does                                                                                                        |
+| -------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| Allow commands from Gladys       | off     | The pool is only read until you tick it. Then: pumps, heaters, set points, lights and the eXO switches.             |
+| Also allow the auxiliary outputs | off     | The plain auxiliaries and valve actuators of the panel, and the aux outputs of the eXO. Needs the option above too. |
+| Show the unnamed auxiliaries     | off     | Auxiliaries still named "Aux 3", "Aux V12" or "Extra Aux" on the panel are left out unless this box is ticked.      |
+| Refresh interval (seconds)       | 60      | How often the pool is read: 30 seconds at the fastest.                                                              |
+| Language                         | French  | Names of the features of the systems added from now on, and the status text.                                        |
+
+An auxiliary output can drive anything wired to it: a cleaner, a water
+feature, but also a **valve** (spa spillover, solar...), and the iAquaLink
+valve actuators (SJVA) are auxiliaries too. That is why they have their own
+option, off by default: tick it only if commanding them from Gladys is safe
+for your installation.
 
 ## Limits of use
 
@@ -56,19 +63,24 @@ most every 30 seconds), and gives a short summary.
 - A refused email or password is not tried again for 6 hours, or at once
   after you change it (or with the Test button), so the account is not locked.
 - The session (IdToken) is renewed before it expires; a refused refresh token
-  leads to one new sign-in, never more than one every 5 minutes.
+  leads to one new sign-in, never more than one every 5 minutes. After three
+  sign-ins failing in a row (no answer, error), the next try waits 6 hours, or
+  a change of the configuration, or the Test button.
 
 ## How commands work
 
 The pumps, heaters and plain auxiliaries of an iAquaLink panel only know a
 **toggle** command. So, for each command, the integration:
 
-1. reads the state of the panel again, right before;
+1. reads the state of the panel again, right before (within 4 seconds:
+   Gladys waits 5 seconds for the answer; a slower read sends nothing);
 2. refuses when the panel is offline, or when the state of the equipment
    cannot be read;
 3. sends nothing when the equipment is already in the asked state;
-4. otherwise toggles once, and refuses another toggle of the same equipment
-   for 30 seconds unless the panel already reports the change.
+4. otherwise toggles once. For the next 60 seconds, unless the panel already
+   reports the change, the equipment is expected in its new state: asking it
+   again succeeds without sending anything, asking the old state is refused
+   (a second toggle would undo the first one).
 
 Commands of one system run one at a time. Dimmable and colour lights, set
 points and every eXO command take an absolute value instead. Set points must

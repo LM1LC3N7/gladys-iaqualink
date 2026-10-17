@@ -11,7 +11,7 @@ import { RequestBudget } from '../src/budget.js';
 import { AQUALINK, TIMINGS } from '../src/constants.js';
 import { AqualinkClient, jwtExpiry, parseSession, sign } from '../src/iaqualink/client.js';
 import { AqualinkError, errorReason, retryAfterMs } from '../src/iaqualink/http.js';
-import { EMAIL, NOW, PASSWORD, SERIALS, USER_ID } from './fixtures/iaqualink.js';
+import { EMAIL, NOW, PASSWORD, SERIALS, UNAUTHORIZED_HTML, USER_ID } from './fixtures/iaqualink.js';
 import { fakeCloud } from './helpers/fakeCloud.js';
 
 function setup({ server = fakeCloud(), perMinute = 100 } = {}) {
@@ -192,6 +192,40 @@ test('the failures are classified, with no URL in the message', async () => {
   for (const err of [limited, network, bad]) {
     assert.doesNotMatch(err.message, /session|iaqualink\.net|id-token/);
   }
+});
+
+test('a 401 answered as an HTML page: a refused session on data, a refused password on login', async () => {
+  const { server, client } = setup();
+  await client.systems();
+  server.fail('get_home', 401, { body: UNAUTHORIZED_HTML });
+  await client.iaqua(SERIALS.iaqua, 'get_home');
+  assert.deepEqual(server.names().slice(-3), ['get_home', 'refresh', 'get_home']);
+  const other = setup();
+  other.server.fail('login', 401, { body: UNAUTHORIZED_HTML });
+  const err = await other.client.systems().catch((e) => e);
+  assert.equal(err.kind, 'refused');
+  assert.equal(err.during, 'login');
+});
+
+test('the requests of a command skip the gap between requests, never the budget', async () => {
+  const server = fakeCloud();
+  let now = NOW;
+  const sleeps = [];
+  const budget = new RequestBudget({ now: () => now, perMinute: 100, gap: 1000 });
+  const client = new AqualinkClient({
+    budget,
+    fetch: server.fetch,
+    now: () => now,
+    sleep: async (ms) => {
+      sleeps.push(ms);
+      now += ms;
+    },
+  });
+  client.configure({ email: EMAIL, password: PASSWORD });
+  await client.iaqua(SERIALS.iaqua, 'get_home');
+  assert.deepEqual(sleeps, [1000], 'the read after the sign-in waits for the gap');
+  await client.iaqua(SERIALS.iaqua, 'set_pool_pump', {}, { urgent: true, timeout: 900 });
+  assert.deepEqual(sleeps, [1000]);
 });
 
 test('a busy edge page on the login is not a refused password', async () => {

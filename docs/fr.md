@@ -39,12 +39,19 @@ Le bouton **Tester la connexion** se connecte et lit le compte tout de suite
 
 ## Options
 
-| Option                                | Par défaut | Effet                                                                                                                            |
-| ------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Autoriser les commandes depuis Gladys | oui        | Décochez pour seulement lire la piscine : toute commande est alors refusée.                                                      |
-| Afficher les auxiliaires sans nom     | non        | Les auxiliaires encore nommés « Aux 3 », « Aux V12 » ou « Extra Aux » sur le coffret sont ignorés sauf si cette case est cochée. |
-| Intervalle de rafraîchissement (s)    | 60         | Fréquence de lecture de la piscine : 30 secondes au plus vite.                                                                   |
-| Langue                                | français   | Noms des fonctionnalités des systèmes ajoutés désormais, et texte d'état.                                                        |
+| Option                                  | Par défaut | Effet                                                                                                                            |
+| --------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Autoriser les commandes depuis Gladys   | non        | La piscine est seulement lue tant que la case n'est pas cochée. Ensuite : pompes, chauffages, consignes, éclairages, eXO.        |
+| Autoriser aussi les sorties auxiliaires | non        | Auxiliaires simples et actionneurs de vanne du coffret, sorties aux de l'eXO. Demande aussi l'option du dessus.                  |
+| Afficher les auxiliaires sans nom       | non        | Les auxiliaires encore nommés « Aux 3 », « Aux V12 » ou « Extra Aux » sur le coffret sont ignorés sauf si cette case est cochée. |
+| Intervalle de rafraîchissement (s)      | 60         | Fréquence de lecture de la piscine : 30 secondes au plus vite.                                                                   |
+| Langue                                  | français   | Noms des fonctionnalités des systèmes ajoutés désormais, et texte d'état.                                                        |
+
+Une sortie auxiliaire peut piloter tout ce qui y est branché : un robot, une
+cascade, mais aussi une **vanne** (débordement du spa, solaire...), et les
+actionneurs de vanne iAquaLink (SJVA) sont eux aussi des auxiliaires. C'est
+pourquoi ils ont leur propre option, désactivée par défaut : ne la cochez que
+si les commander depuis Gladys est sans danger pour votre installation.
 
 ## Limites d'usage
 
@@ -61,7 +68,9 @@ Le bouton **Tester la connexion** se connecte et lit le compte tout de suite
   bloquer le compte.
 - La session (IdToken) est renouvelée avant son expiration ; un jeton de
   renouvellement refusé entraîne une seule nouvelle connexion, jamais plus
-  d'une toutes les 5 minutes.
+  d'une toutes les 5 minutes. Après trois connexions échouées de suite (pas
+  de réponse, erreur), le prochain essai attend 6 heures, une modification de
+  la configuration ou le bouton de test.
 
 ## Fonctionnement des commandes
 
@@ -69,12 +78,15 @@ Les pompes, chauffages et auxiliaires simples d'un coffret iAquaLink ne
 connaissent qu'une commande de **bascule**. Pour chaque commande,
 l'intégration :
 
-1. relit l'état du coffret juste avant ;
+1. relit l'état du coffret juste avant (en 4 secondes au plus : Gladys attend
+   la réponse 5 secondes ; une relecture plus lente n'envoie rien) ;
 2. refuse si le coffret est hors ligne, ou si l'état de l'équipement ne peut
    pas être lu ;
 3. n'envoie rien si l'équipement est déjà dans l'état demandé ;
-4. sinon bascule une fois, et refuse une autre bascule du même équipement
-   pendant 30 secondes, sauf si le coffret signale déjà le changement.
+4. sinon bascule une fois. Pendant les 60 secondes suivantes, sauf si le
+   coffret signale déjà le changement, l'équipement est attendu dans son
+   nouvel état : le redemander réussit sans rien envoyer, demander l'ancien
+   état est refusé (une seconde bascule annulerait la première).
 
 Les commandes d'un même système passent une par une. Les éclairages variables
 et de couleur, les consignes et toutes les commandes de l'eXO prennent une

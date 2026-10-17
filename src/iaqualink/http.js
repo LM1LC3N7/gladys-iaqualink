@@ -81,13 +81,32 @@ function errorFor(status, text, { login, now, headers }) {
  */
 export async function request(
   fetchImpl,
-  { method = 'GET', url, query, headers = {}, json, login = false, now = Date.now() },
+  {
+    method = 'GET',
+    url,
+    query,
+    headers = {},
+    json,
+    login = false,
+    now = Date.now(),
+    timeout = TIMINGS.requestTimeout,
+  },
 ) {
   const target = new URL(url);
   for (const [key, value] of Object.entries(query ?? {})) {
     target.searchParams.set(key, String(value));
   }
+  const failed = (err) => {
+    const late = err?.name === 'TimeoutError' || err?.name === 'AbortError';
+    const error = new AqualinkError(
+      'network',
+      late ? 'iAquaLink did not answer in time' : 'iAquaLink cannot be reached',
+    );
+    error.timeout = late;
+    return error;
+  };
   let response;
+  let text;
   try {
     response = await fetchImpl(target.toString(), {
       method,
@@ -98,16 +117,12 @@ export async function request(
         ...headers,
       },
       body: json === undefined ? undefined : JSON.stringify(json),
-      signal: AbortSignal.timeout(TIMINGS.requestTimeout),
+      signal: AbortSignal.timeout(timeout),
     });
+    text = await response.text();
   } catch (err) {
-    const timeout = err?.name === 'TimeoutError' || err?.name === 'AbortError';
-    throw new AqualinkError(
-      'network',
-      timeout ? 'iAquaLink did not answer in time' : 'iAquaLink cannot be reached',
-    );
+    throw failed(err);
   }
-  const text = await response.text();
   if (text.length > LIMITS.responseBytes) {
     throw new AqualinkError('bad_response', 'iAquaLink sent an answer too large', {
       status: response.status,

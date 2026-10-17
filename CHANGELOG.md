@@ -23,9 +23,15 @@ the notes of the version's GitHub Release.
   chlorine production level, chlorine production, boost, low mode, filter
   pump, auxiliary outputs, heating and its set point, and a status text (error
   code, low salt).
-- Commands, one at a time per system, after reading the state again; a toggle
-  is refused when the state is unknown, and for 30 seconds after the previous
-  one unless the panel reports the change. An option turns every command off.
+- Commands, off until allowed in the configuration; the auxiliary outputs
+  (which may drive a valve, valve actuators included) need a second option.
+  One at a time per system, after reading the state again within the 5 s ack
+  of Gladys; a toggle is refused when the state is unknown, and for 60 seconds
+  after the previous one only the new state is accepted, unless the panel
+  reports the change sooner.
+- A panel switching between Celsius and Fahrenheit: values and set points
+  converted to the unit of the features.
+- After three sign-ins failing in a row, a 6-hour pause.
 - Reads every minute by default (30 seconds at the fastest), at most 20
   requests a minute, longer pauses after errors and on HTTP 429.
 - Transport badges, a "Test the connection" button, feature names in French

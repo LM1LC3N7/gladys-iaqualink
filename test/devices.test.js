@@ -133,6 +133,25 @@ test('features only grow: an equipment seen once stays', () => {
   assert.equal(restored[SERIALS.iaqua].unit, 'C');
 });
 
+test('air down to -30 °C, a panel pH in tenths read as pH', () => {
+  const system = panel({ ...HOME_VALUES, ph: '72' });
+  const air = buildDevice(gladys, system, 'en').features.find((f) =>
+    f.external_id.endsWith(':air-temperature'),
+  );
+  assert.equal(air.min, -30);
+  assert.deepEqual(
+    statesOf(system, 'en').find((s) => s.key === 'ph'),
+    { key: 'ph', state: 7.2 },
+  );
+});
+
+test('the kind of an auxiliary already seen is never rewritten', () => {
+  const system = panel();
+  system.aux = parseDevices(devicesAnswer([['aux_1', '0', 'Cleaner', '1', '0']])).aux;
+  observe(system, config);
+  assert.equal(system.seen.aux.get('aux_1').kind, 'switch');
+});
+
 test('a panel never read online is not published', () => {
   const system = {
     serial: 'X',

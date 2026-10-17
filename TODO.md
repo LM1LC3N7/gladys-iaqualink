@@ -25,18 +25,23 @@ up to date at the end of every milestone.
       Tested against sample answers and a fake cloud only.
 - [ ] **Milestone 2 — real accounts** (testers with an iAquaLink panel or an
       eXO): record real answers as fixtures, fix what differs. To check first:
-  - the login and refresh answers (`ExpiresIn`, `RefreshToken` on refresh,
-    `country`), and what a wrong password answers (400? 401? 403?);
-  - the Node `fetch` (HTTP/1.1) accepted by the endpoints iaqualink-py reaches
-    over HTTP/2;
-  - eXO: pH in tenths (75 = 7.5) on every firmware, `ph_sp` too; the aux
-    `type` values; the shadow `reported` catching up after a desired state
-    (and whether `production` is the switch the app shows);
-  - panels: `pool_temp` empty while the pump is off, salinity in ppm, the
-    labels of lights (`LIGHT` in the label), the answer of `set_light` and of
-    `setpoint_hpm_temp`, the panel answering a toggle with the new state;
-  - a pool + spa panel (`system_type` 0 and 2), the order of `temp1`/`temp2`;
-  - which status code a busy cloud answers (429? 503?).
+  - [ ] the login and refresh answers (`ExpiresIn`, `RefreshToken` on
+        refresh, `country`), and what a wrong password answers (400? 401?
+        403? an HTML page, see `UNAUTHORIZED_HTML` in the fixtures?);
+  - [ ] **HTTP/1.1**: the Node `fetch` (HTTP/1.1 only) accepted by the
+        endpoints iaqualink-py reaches over HTTP/2;
+  - [ ] eXO: pH in tenths (75 = 7.5) on every firmware, `ph_sp` too; the aux
+        `type` values; the shadow `reported` catching up after a desired
+        state (and whether `production` is the switch the app shows);
+  - [ ] panels: `pool_temp` empty while the pump is off, salinity in ppm, pH
+        in tenths or not, the labels of lights (`LIGHT` in the label), the
+        `type` 3 of the valve actuators (SJVA), the answer of `set_light` and
+        of `setpoint_hpm_temp`, how long a panel takes to report a toggle (the
+        60 s guard);
+  - [ ] a pool + spa panel (`system_type` 0 and 2), the order of
+        `temp1`/`temp2`;
+  - [ ] the time a read takes (the 4 s deadline of a command);
+  - [ ] which status code a busy cloud answers (429? 503?).
 - [ ] **Milestone 3 — more of iaqualink-py**: OneTouch scenes, variable-speed
       pumps of a panel (`vsp_pump_*`, speed presets), IntelliCenter light
       zones (`icl_zone_*`), colour effects (`text`/`select`), the heat pump
@@ -83,14 +88,31 @@ up to date at the end of every milestone.
   temperatures and set points (`thermostat`/`target-temperature`), `ph`,
   `millivolt` for ORP. Salinity and the chlorine production level have no
   Gladys category: `unknown` without unit, the unit in the feature name.
-- Commands are on by default (`allow_commands`): none of them is a lock, an
-  alarm or a valve. **To confirm with Louis.** Safety: one command at a time
-  per system; the state is read again just before (never decided on a state
-  in memory); a toggle is refused when the panel is offline or the state
-  unknown, skipped when already right, and refused for 30 s after the
-  previous one unless the panel reports the change. Lights, set points and the
-  eXO take absolute values. A command finding fewer than 2 requests left in
-  the minute is refused, not queued.
+- Commands are off by default (`allow_commands: false`, read-only at
+  installation; once on: pumps, heaters, set points, lights, eXO switches).
+  The plain auxiliaries of a panel (kind `switch`), its valve actuators
+  (`type` 3, SJVA, kind `valve`) and the eXO `aux_N` can drive anything, a
+  valve included: they need `allow_aux_commands` (false by default) on top.
+  Lights stay under `allow_commands` alone. Review of milestone 1.
+- Command safety: one command at a time per system; the state is read again
+  just before (never decided on a state in memory), with no gap and a 4 s
+  timeout, and nothing is sent when that read ended after 4 s (Gladys awaits
+  the ack 5 s); the command request gets what is left of 4.8 s (0.8 s at
+  least). A toggle is refused when the panel is offline or the state unknown,
+  skipped when already right. After a toggle, a guard holds 60 s from the end
+  of its request: the expected state is `1 - from`; asking it succeeds
+  without sending, asking the old one is refused ("moving"); the guard ends
+  early only on a reading of the system online showing `1 - from`, never on
+  an unknown state. A toggle refused or never sent (4xx, 401, 429, budget,
+  sign-in failure) leaves no guard; one that may have reached the panel
+  (no answer, 5xx, unreadable answer) is guarded. The answer of a toggle is
+  not shown (the panel may still report the old state). Lights, set points
+  and the eXO take absolute values; an eXO state not reported is refused. A
+  command finding fewer than 2 requests left in the minute is refused, not
+  queued; a 429 answering a command pauses the reads and the commands.
+- A panel whose scale changes after the features were created (unit frozen):
+  values and set points are converted C↔F, the change logged once; a set
+  point is refused while the scale of the panel cannot be read.
 - Set points: `set_temps` sends both (spa first when the panel has a spa set
   point, the other seeded with the value just read); refused when the other
   one is unknown. With a heat pump paired, `setpoint_hpm_temp` (as
@@ -100,16 +122,25 @@ up to date at the end of every milestone.
   refused refresh token is dropped, then one sign-in; no automatic sign-in
   within 5 minutes of the last successful one; a refused password (400, 401
   or 403 on the login, except an HTML page of a busy CDN) waits 6 hours, a
-  configuration change, or the Test button.
+  configuration change, or the Test button. Three sign-ins failing in a row
+  for another reason (no answer, 5xx, unexpected answer) wait 6 hours too
+  (the counter resets on a successful read, a configuration change or the
+  Test button).
 - Rate: refresh 30 s minimum (60 s default); device list every 30 minutes;
   our own ceiling of 20 requests per minute, 1 s apart; backoff 1, 2, 5, 10,
   15 minutes; 429 pauses for Retry-After clamped to 1–60 minutes (15 by
-  default); the scan and the Test button never read during that pause, nor
-  more often than every 30 s.
+  default); the scan, the Test button and the commands never read during that
+  pause, nor (scan, button) more often than every 30 s. Four systems per
+  account at most (1 + 4 × 2 requests per round).
 - Errors of one system (`http`, `bad_response`) mark that system unreachable
   and the read goes on with the others; account-level errors stop the round.
-- eXO pH: the shadow sends tenths (75 = 7.5); a value above 14 is divided by
-  ten, one already in pH units is kept.
+- `/data` keeps the systems missing from one device list (a hiccup of the
+  cloud), so they come back with their features. The kind of an auxiliary
+  already seen is never rewritten (it shapes the feature).
+- pH (eXO and panel): tenths (75 = 7.5) are divided by ten, a value already in
+  pH units is kept. Air temperature down to -30 °C (-22 °F).
+- Error reasons are shown in the language of the configuration, by kind,
+  never with a URL, a token or a password.
 - Unnamed auxiliaries ("Aux 3", "Aux V12", "Extra Aux") are left out unless
   `include_unnamed_aux` is ticked: a panel lists up to 32, most unused.
 - Status texts and feature names follow the `language` option (fr default).

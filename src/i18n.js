@@ -51,6 +51,38 @@ export const STATUS_TEXT = {
   lowSalt: { en: 'low salt', fr: 'sel insuffisant' },
 };
 
+/** Short reasons of the iAquaLink failures, by `AqualinkError.kind`. */
+export const REASONS = {
+  refused: { en: 'email or password refused', fr: 'e-mail ou mot de passe refusé' },
+  unauthorized: { en: 'session refused', fr: 'session refusée' },
+  rate_limited: { en: 'too many requests', fr: 'trop de requêtes' },
+  unavailable: { en: 'service unavailable', fr: 'service indisponible' },
+  network: { en: 'no answer', fr: 'pas de réponse' },
+  timeout: { en: 'no answer in time', fr: 'pas de réponse à temps' },
+  bad_response: { en: 'unexpected answer', fr: 'réponse inattendue' },
+  http: { en: 'request refused', fr: 'requête refusée' },
+  budget: {
+    en: 'request budget of the minute spent',
+    fr: 'budget de requêtes de la minute épuisé',
+  },
+  no_credentials: { en: 'no email or password', fr: "pas d'e-mail ou de mot de passe" },
+  login_cooldown: {
+    en: 'session refused again just after signing in',
+    fr: 'session de nouveau refusée juste après la connexion',
+  },
+};
+
+/** `{ en, fr }` reason of an error, without URL, token or password. */
+export function reasonOf(err) {
+  const reason = REASONS[err?.timeout ? 'timeout' : err?.kind];
+  if (!reason) {
+    const text = String(err?.message ?? err);
+    return { en: text, fr: text };
+  }
+  const status = err.status ? ` (HTTP ${err.status})` : '';
+  return { en: `${reason.en}${status}`, fr: `${reason.fr}${status}` };
+}
+
 /** "25 min" / "3 h" / "40 s", for the pauses. */
 export function age(ms) {
   if (ms < 60_000) {
@@ -97,8 +129,12 @@ export const T = {
     fr: `iAquaLink a refusé l'e-mail ou le mot de passe : vérifiez-les dans la configuration. Nouvel essai dans ${wait.fr}, ou dès leur modification.`,
   }),
   unreachable: (reason, wait) => ({
-    en: `iAquaLink cannot be reached (${reason}). Next try in ${wait.en}.`,
-    fr: `iAquaLink est injoignable (${reason}). Nouvel essai dans ${wait.fr}.`,
+    en: `iAquaLink cannot be reached (${reason.en}). Next try in ${wait.en}.`,
+    fr: `iAquaLink est injoignable (${reason.fr}). Nouvel essai dans ${wait.fr}.`,
+  }),
+  loginFailing: (wait) => ({
+    en: `Signing in to iAquaLink failed several times in a row: next try in ${wait.en}, or at once after a change of the configuration.`,
+    fr: `La connexion à iAquaLink a échoué plusieurs fois de suite : nouvel essai dans ${wait.fr}, ou dès une modification de la configuration.`,
   }),
   rateLimited: (wait) => ({
     en: `iAquaLink asked to slow down: pausing for ${wait.en}.`,
@@ -122,8 +158,20 @@ export const T = {
       fr: "L'état actuel de cet équipement n'a pas pu être lu à l'instant : basculer pourrait faire l'inverse, la commande est donc refusée.",
     },
     moving: {
-      en: 'This equipment was just switched and the panel does not report the change yet: command ignored (try again in 30 seconds).',
-      fr: "Cet équipement vient d'être commandé et le panneau ne signale pas encore le changement : commande ignorée (réessayez dans 30 secondes).",
+      en: 'This equipment was just switched and the panel does not report the change yet: command refused (try again in a minute).',
+      fr: "Cet équipement vient d'être commandé et le panneau ne signale pas encore le changement : commande refusée (réessayez dans une minute).",
+    },
+    aux: {
+      en: 'Commands of the auxiliary outputs (which may drive a valve) are turned off: allow them in the configuration of the iAquaLink integration.',
+      fr: "Les commandes des sorties auxiliaires (qui peuvent piloter une vanne) sont désactivées : autorisez-les dans la configuration de l'intégration iAquaLink.",
+    },
+    slow: {
+      en: 'iAquaLink answered too slowly: command refused, nothing was sent (try again).',
+      fr: "iAquaLink a répondu trop lentement : commande refusée, rien n'a été envoyé (réessayez).",
+    },
+    unit: {
+      en: 'The temperature unit of the panel cannot be read just now: command refused.',
+      fr: "L'unité de température du coffret ne peut pas être lue à l'instant : commande refusée.",
     },
     range: (min, max) => ({
       en: `Out of range: the set point must be between ${min} and ${max}.`,

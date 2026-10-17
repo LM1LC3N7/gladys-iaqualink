@@ -15,11 +15,14 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { SYSTEM_TYPES } from './constants.js';
 import { FEATURE_NAMES, STATUS_TEXT, word } from './i18n.js';
+import { phOf } from './iaqualink/exo.js';
 import {
+  RAW_AUX_KINDS,
   SETPOINT_RANGE,
   auxFeature,
   binaryOf,
   brightnessOf,
+  convertTemperature,
   isDefaultAuxName,
   numberOf,
 } from './iaqualink/iaqua.js';
@@ -57,6 +60,11 @@ const SHAPES = {
     unit: temperatureUnit(unit),
     min: unit === 'F' ? 14 : -10,
     max: unit === 'F' ? 122 : 50,
+  }),
+  // The air can freeze well below the water.
+  air: (unit) => ({
+    ...SHAPES.temperature(unit),
+    min: unit === 'F' ? -22 : -30,
   }),
   setpoint: (unit, range = SETPOINT_RANGE[unit === 'F' ? 'F' : 'C']) => ({
     category: C.THERMOSTAT,
@@ -145,7 +153,7 @@ const IAQUA_SHAPES = {
   status: () => SHAPES.text(),
   'pool-temperature': (unit) => SHAPES.temperature(unit),
   'spa-temperature': (unit) => SHAPES.temperature(unit),
-  'air-temperature': (unit) => SHAPES.temperature(unit),
+  'air-temperature': (unit) => SHAPES.air(unit),
   'pool-pump': () => SHAPES.switch(),
   'spa-pump': () => SHAPES.switch(),
   'pool-heater': () => SHAPES.switch(),
@@ -166,7 +174,8 @@ function iaquaFeatures(system, language) {
   );
   for (const aux of seen.aux.values()) {
     const key = auxFeature(aux);
-    const isLight = aux.kind !== 'switch';
+    // Plain auxiliaries and valve actuators are switches, the rest lights.
+    const isLight = !RAW_AUX_KINDS.includes(aux.kind);
     features.push({ key, name: aux.label, ...(isLight ? SHAPES.light() : SHAPES.switch()) });
     if (aux.kind === 'dimmer') {
       features.push({
@@ -194,17 +203,23 @@ function iaquaStates(system, language) {
       states.push({ key, state });
     }
   };
-  put('pool-temperature', numberOf(v.pool_temp));
-  put('spa-temperature', numberOf(v.spa_temp));
-  put('air-temperature', numberOf(v.air_temp));
+  // The panel scale changed since the features were created: converted to
+  // the frozen unit of the features.
+  const temp = (raw) => {
+    const value = convertTemperature(numberOf(raw), home.tempUnit, system.unit);
+    return value === undefined ? undefined : Math.round(value * 10) / 10;
+  };
+  put('pool-temperature', temp(v.pool_temp));
+  put('spa-temperature', temp(v.spa_temp));
+  put('air-temperature', temp(v.air_temp));
   put('pool-pump', binaryOf(v.pool_pump));
   put('spa-pump', binaryOf(v.spa_pump));
   put('pool-heater', binaryOf(v.pool_heater, { heater: true }));
   put('spa-heater', binaryOf(v.spa_heater, { heater: true }));
   put('solar-heater', binaryOf(v.solar_heater, { heater: true }));
-  put('pool-setpoint', numberOf(v.pool_set_point));
-  put('spa-setpoint', numberOf(v.spa_set_point));
-  put('ph', numberOf(v.ph));
+  put('pool-setpoint', temp(v.pool_set_point));
+  put('spa-setpoint', temp(v.spa_set_point));
+  put('ph', phOf(v.ph));
   put('orp', numberOf(v.orp));
   put('pool-salinity', numberOf(v.pool_salinity));
   put('spa-salinity', numberOf(v.spa_salinity));
@@ -355,7 +370,9 @@ export function observe(system, config) {
       seen.features.add(key);
     }
     for (const aux of shownAux(system.aux, config)) {
-      seen.aux.set(aux.key, { key: aux.key, suffix: aux.suffix, label: aux.label, kind: aux.kind });
+      // The kind shapes the feature (switch or light): never rewritten once seen.
+      const kind = seen.aux.get(aux.key)?.kind ?? aux.kind;
+      seen.aux.set(aux.key, { key: aux.key, suffix: aux.suffix, label: aux.label, kind });
     }
     if (system.home?.tempUnit && !system.unit) {
       // Frozen: the unit of a feature cannot change once created.

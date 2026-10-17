@@ -7,10 +7,12 @@ import { REFRESH_INTERVAL } from './constants.js';
 /** Defaults, mirrored by the manifest (checked by test/manifest.test.js). */
 export const DEFAULTS = {
   refresh_interval: REFRESH_INTERVAL.default,
-  // Pumps, heaters, lights, auxiliaries, set points, chlorinator: none of them
-  // is a lock, an alarm or a valve, so they are on by default; one box turns
-  // every command off.
-  allow_commands: true,
+  // Read-only at installation: the user turns the commands on (pumps, heaters,
+  // set points, lights, eXO switches).
+  allow_commands: false,
+  // Plain auxiliaries of a panel, valve actuators and the eXO aux outputs can
+  // drive anything, valves included: a second, separate opt-in.
+  allow_aux_commands: false,
   // Auxiliaries still named "Aux 3", "Aux V12", "Extra Aux"... are usually unused.
   include_unnamed_aux: false,
   language: 'fr',
@@ -40,6 +42,7 @@ export function normalizeConfig(raw = {}) {
       ? Math.round(Math.max(REFRESH_INTERVAL.min, Math.min(REFRESH_INTERVAL.max, interval)))
       : DEFAULTS.refresh_interval,
     allowCommands: flag(raw?.allow_commands, DEFAULTS.allow_commands),
+    allowAuxCommands: flag(raw?.allow_aux_commands, DEFAULTS.allow_aux_commands),
     includeUnnamedAux: flag(raw?.include_unnamed_aux, DEFAULTS.include_unnamed_aux),
     language: LANGUAGES.includes(language) ? language : DEFAULTS.language,
   };

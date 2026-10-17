@@ -52,8 +52,13 @@ export const LIMITS = {
   requestsPerMinute: 20,
   /** Largest HTTP answer read. */
   responseBytes: 2 * 1024 * 1024,
-  /** Systems read per account (a pool owner has one or two). */
-  systems: 10,
+  /**
+   * Systems read per account (a pool owner has one or two): four panels make
+   * 1 + 4 × 2 requests per round, well within the minute ceiling.
+   */
+  systems: 4,
+  /** Consecutive failed sign-ins (not refusals) after which the long pause applies. */
+  loginFailures: 3,
   /** Auxiliary outputs read per panel (an iAquaLink RS has up to 32). */
   auxPerSystem: 40,
   /** Dated states kept while Gladys is unreachable. */
@@ -80,14 +85,27 @@ export const TIMINGS = {
   rateLimitPause: 15 * 60_000,
   rateLimitMin: 60_000,
   rateLimitMax: 60 * 60_000,
-  /** Email or password refused: one new try this late, or at once after a configuration change. */
+  /**
+   * Email or password refused, or LIMITS.loginFailures sign-ins failed in a
+   * row: one new try this late, or at once after a configuration change.
+   */
   refusedRetry: 6 * 60 * 60_000,
   /**
-   * After a toggle command (iAquaLink panels only know "toggle"), a new
-   * command on the same equipment is refused this long, unless the panel
-   * already reports the change: a second toggle would undo the first one.
+   * After a toggle command (iAquaLink panels only know "toggle"), counted
+   * from the end of its request: the equipment is expected in the other
+   * state, and a command asking the old one is refused, until the panel
+   * reports the change or this delay ends (a second toggle would undo the
+   * first one).
    */
-  toggleGuard: 30_000,
+  toggleGuard: 60_000,
+  /**
+   * Gladys waits 5 s for the ack of a command: the state read before it gets
+   * at most this long (beyond, the command is refused without toggling)...
+   */
+  commandReadDeadline: 4_000,
+  /** ...and the command request what is left of this, at least commandSendMin. */
+  commandAckBudget: 4_800,
+  commandSendMin: 800,
   /** The publisher sends what is pending every second. */
   flushInterval: 1_000,
   /** An unchanged state is sent again every 30 minutes. */

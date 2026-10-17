@@ -21,8 +21,8 @@
         "fr": "Votre piscine iAquaLink"
       },
       "description": {
-        "en": "Brings your iAquaLink pool systems into Gladys through the iAquaLink cloud: Jandy iAquaLink panels (pool, spa and air temperatures, pumps, heaters and set points, lights, auxiliaries) and Zodiac eXO iQ chlorinators (chlorine production, boost, pH, ORP, water temperature, status). Enter the email and password of your iAquaLink app account, then add your systems from the Discovery tab. The cloud is read every minute by default (30 seconds at the fastest), with longer pauses after errors. Unofficial, not affiliated with Zodiac, Jandy or Fluidra; never tested on a real system yet.",
-        "fr": "Amène vos systèmes de piscine iAquaLink dans Gladys par le cloud iAquaLink : coffrets Jandy iAquaLink (températures piscine, spa et air, pompes, chauffages et consignes, éclairages, auxiliaires) et électrolyseurs Zodiac eXO iQ (production de chlore, boost, pH, redox, température de l'eau, état). Saisissez l'e-mail et le mot de passe de votre compte de l'application iAquaLink, puis ajoutez vos systèmes depuis l'onglet Découverte. Le cloud est lu chaque minute par défaut (30 secondes au plus vite), avec des pauses plus longues après une erreur. Non officiel, sans lien avec Zodiac, Jandy ou Fluidra ; jamais testé sur un vrai système pour l'instant."
+        "en": "Brings your iAquaLink pool systems into Gladys through the iAquaLink cloud: Jandy iAquaLink panels (pool, spa and air temperatures, pumps, heaters and set points, lights, auxiliaries) and Zodiac eXO iQ chlorinators (chlorine production, boost, pH, ORP, water temperature, status). Enter the email and password of your iAquaLink app account, then add your systems from the Discovery tab. Commands stay off until you allow them below. The cloud is read every minute by default (30 seconds at the fastest), with longer pauses after errors. Unofficial, not affiliated with Zodiac, Jandy or Fluidra; never tested on a real system yet.",
+        "fr": "Amène vos systèmes de piscine iAquaLink dans Gladys par le cloud iAquaLink : coffrets Jandy iAquaLink (températures piscine, spa et air, pompes, chauffages et consignes, éclairages, auxiliaires) et électrolyseurs Zodiac eXO iQ (production de chlore, boost, pH, redox, température de l'eau, état). Saisissez l'e-mail et le mot de passe de votre compte de l'application iAquaLink, puis ajoutez vos systèmes depuis l'onglet Découverte. Les commandes restent désactivées tant que vous ne les autorisez pas ci-dessous. Le cloud est lu chaque minute par défaut (30 secondes au plus vite), avec des pauses plus longues après une erreur. Non officiel, sans lien avec Zodiac, Jandy ou Fluidra ; jamais testé sur un vrai système pour l'instant."
       },
       "links": [
         {
@@ -64,11 +64,25 @@
         "fr": "Autoriser les commandes depuis Gladys"
       },
       "description": {
-        "en": "Pumps, heaters, set points, lights, auxiliaries and chlorinator switches. Untick to only read the pool. Each command reads the state again just before it is sent.",
-        "fr": "Pompes, chauffages, consignes, éclairages, auxiliaires et commandes de l'électrolyseur. Décochez pour seulement lire la piscine. Chaque commande relit l'état juste avant d'être envoyée."
+        "en": "Off by default: the pool is only read. Once ticked: pumps, heaters, set points, lights and the switches of the eXO chlorinator. Each command reads the state again just before it is sent.",
+        "fr": "Désactivé par défaut : la piscine est seulement lue. Une fois coché : pompes, chauffages, consignes, éclairages et commandes de l'électrolyseur eXO. Chaque commande relit l'état juste avant d'être envoyée."
       },
       "required": false,
-      "default": true
+      "default": false
+    },
+    {
+      "key": "allow_aux_commands",
+      "type": "boolean",
+      "label": {
+        "en": "Also allow the auxiliary outputs",
+        "fr": "Autoriser aussi les sorties auxiliaires"
+      },
+      "description": {
+        "en": "The plain auxiliaries of the panel, its valve actuators and the aux outputs of the eXO can drive anything, a valve included: they stay read-only unless this box (and the one above) is ticked.",
+        "fr": "Les auxiliaires simples du coffret, ses actionneurs de vanne et les sorties aux de l'eXO peuvent piloter n'importe quoi, y compris une vanne : ils restent en lecture seule sauf si cette case (et celle du dessus) est cochée."
+      },
+      "required": false,
+      "default": false
     },
     {
       "key": "include_unnamed_aux",

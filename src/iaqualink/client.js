@@ -94,8 +94,12 @@ export class AqualinkClient {
     this.lastLoginAt = -Infinity;
   }
 
-  async send(options) {
-    const wait = this.budget.wait();
+  /**
+   * One request within the budget. `urgent` (the requests of a command, whose
+   * ack Gladys awaits 5 s) skips the gap between requests, never the budget.
+   */
+  async send({ urgent = false, ...options }) {
+    const wait = urgent ? 0 : this.budget.wait();
     if (wait > 0) {
       await this.sleep(wait);
     }
@@ -113,13 +117,20 @@ export class AqualinkClient {
       throw new AqualinkError('login_cooldown', 'the iAquaLink session was refused again');
     }
     this.session = null;
-    const json = await this.send({
-      method: 'POST',
-      url: AQUALINK.loginUrl,
-      json: { api_key: AQUALINK.apiKey, email: this.email, password: this.password },
-      login: true,
-    });
-    this.session = parseSession(json, this.now());
+    let json;
+    try {
+      json = await this.send({
+        method: 'POST',
+        url: AQUALINK.loginUrl,
+        json: { api_key: AQUALINK.apiKey, email: this.email, password: this.password },
+        login: true,
+      });
+      this.session = parseSession(json, this.now());
+    } catch (err) {
+      // The app counts the sign-ins failing in a row.
+      err.during = 'login';
+      throw err;
+    }
     // Only a sign-in that worked counts: a failed one is paced by the backoff of the app.
     this.lastLoginAt = this.now();
     this.logger?.info('Signed in to iAquaLink');
@@ -223,12 +234,16 @@ export class AqualinkClient {
     });
   }
 
-  /** One command of an iAquaLink panel (`get_home`, `set_pool_pump`...). */
-  iaqua(serial, command, params = {}) {
+  /**
+   * One command of an iAquaLink panel (`get_home`, `set_pool_pump`...).
+   * `options`: `{ urgent, timeout }` for the requests of a Gladys command.
+   */
+  iaqua(serial, command, params = {}, options = {}) {
     return this.authorized(async (session) => {
       const extra =
         command === 'get_home' ? { attached_test: 'true', country: session.country } : {};
       const data = await this.send({
+        ...options,
         url: AQUALINK.sessionUrl,
         query: {
           ...extra,
@@ -248,9 +263,10 @@ export class AqualinkClient {
   }
 
   /** The shadow of an eXO chlorinator. */
-  shadow(serial) {
+  shadow(serial, options = {}) {
     return this.authorized(async (session) => {
       const data = await this.send({
+        ...options,
         url: AQUALINK.shadowUrl(serial),
         headers: { Authorization: session.idToken },
       });
@@ -262,9 +278,10 @@ export class AqualinkClient {
   }
 
   /** Writes a desired state into the shadow of an eXO chlorinator. */
-  desire(serial, desired) {
+  desire(serial, desired, options = {}) {
     return this.authorized((session) =>
       this.send({
+        ...options,
         method: 'POST',
         url: AQUALINK.shadowUrl(serial),
         headers: { Authorization: session.idToken },

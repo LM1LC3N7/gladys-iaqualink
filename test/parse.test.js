@@ -83,6 +83,7 @@ test('the devices screen: auxiliaries, their kind, a NaN state skips the update'
 test('auxKind and the default names of the panel', () => {
   assert.equal(auxKind({ type: '0', label: 'Pool Light' }), 'light');
   assert.equal(auxKind({ type: '0', label: 'Cleaner' }), 'switch');
+  assert.equal(auxKind({ type: '3', label: 'Pool Light Valve' }), 'valve', 'SJVA first');
   for (const name of ['Aux3', 'Aux V12', 'AUX 4', 'Extra Aux', 'Aux B1']) {
     assert.equal(isDefaultAuxName(name), true, name);
   }

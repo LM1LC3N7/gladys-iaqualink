@@ -179,6 +179,8 @@ export function fakeCloud({
       href,
     };
     server.requests.push(call);
+    // A test hook: a slow answer (moves the mocked clock), a check...
+    await server.beforeAnswer?.(call);
     const queued = server.failures.get(call.name);
     if (queued?.length) {
       const failure = queued.shift();

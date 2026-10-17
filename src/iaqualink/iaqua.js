@@ -80,8 +80,15 @@ export function parseHome(data) {
   };
 }
 
+/** Kinds of auxiliaries that can drive anything (valves included): `allow_aux_commands`. */
+export const RAW_AUX_KINDS = ['switch', 'valve'];
+
 /** The kind of an auxiliary output (iaqualink-py `_parse_devices_response`). */
 export function auxKind({ type, label }) {
+  if (type === '3') {
+    // SJVA: a valve actuator (spa spillover, solar, water feature...).
+    return 'valve';
+  }
   if (type === '2') {
     return 'color';
   }
@@ -188,6 +195,14 @@ export function setTempsParams(values, which, value) {
     return { temp1: next.spa, temp2: next.pool };
   }
   return { temp1: next.pool };
+}
+
+/** A temperature from one unit ('C' or 'F') to the other. */
+export function convertTemperature(value, from, to) {
+  if (value === undefined || from === to || !from || !to) {
+    return value;
+  }
+  return to === 'F' ? (value * 9) / 5 + 32 : ((value - 32) * 5) / 9;
 }
 
 /** The heat pump command of a set point, when a heat pump is paired (iaqualink-py `_set_value`). */

@@ -15,6 +15,8 @@ import { EMAIL, MINUTE, NOW, PASSWORD, SERIALS } from './fixtures/iaqualink.js';
 import { fakeCloud, memoryStore, settle } from './helpers/fakeCloud.js';
 
 const CONFIG = { email: EMAIL, password: PASSWORD };
+const CONTROL = { ...CONFIG, allow_commands: true };
+const AUX = { ...CONTROL, allow_aux_commands: true };
 const dev = (serial) => `ext:test-integration:iaqualink:${serial}`;
 const IQ = SERIALS.iaqua;
 const EXO = SERIALS.exo;
@@ -190,13 +192,32 @@ test('read again every refresh interval, never faster than 30 seconds', async (t
   assert.equal(server.calls('get_home').length, before + 1);
 });
 
-test('a toggle: the state is read again just before, nothing sent when already right', async (t) => {
+test('read-only by default: every command is refused, nothing is sent', async (t) => {
   const { gladys, server } = await setup(t);
+  await createAll(gladys);
+  const before = server.requests.length;
+  for (const [serial, key] of [
+    [IQ, 'pool-pump'],
+    [IQ, 'pool-setpoint'],
+    [EXO, 'boost'],
+  ]) {
+    const denied = await set(gladys, serial, key, 1);
+    assert.equal(denied.success, false);
+    assert.match(denied.error, /désactivées/);
+  }
+  assert.equal(server.requests.length, before);
+});
+
+test('a toggle: the state is read again just before, nothing sent when already right', async (t) => {
+  const { gladys, server, advance } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   const before = server.requests.length;
   assert.deepEqual(await set(gladys, IQ, 'pool-pump', 0), { success: true });
   assert.deepEqual(server.names().slice(before), ['get_home', 'set_pool_pump']);
   assert.equal(server.home.pool_pump, '0');
+  // The toggle answer is not shown: the next read tells.
+  assert.equal(last(gladys, IQ, 'pool-pump'), 1);
+  await advance(60_000);
   assert.equal(last(gladys, IQ, 'pool-pump'), 0);
   // Already off: one read, no toggle.
   const after = server.requests.length;
@@ -204,61 +225,100 @@ test('a toggle: the state is read again just before, nothing sent when already r
   assert.deepEqual(server.names().slice(after), ['get_home']);
 });
 
-test('a toggle is refused when the state is unknown, or while the previous one is not reported', async (t) => {
-  const { gladys, server, advance } = await setup(t);
+test('a toggle is refused when the state is unknown', async (t) => {
+  const { gladys, server } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   server.home.spa_pump = '';
   const unknown = await set(gladys, IQ, 'spa-pump', 1);
   assert.equal(unknown.success, false);
   assert.match(unknown.error, /n'a pas pu être lu/);
   assert.equal(server.calls('set_spa_pump').length, 0);
-  // The panel does not apply the toggle at once: a second one would undo it.
+});
+
+test('the guard: the expected state succeeds without sending, the old one is refused', async (t) => {
+  const { gladys, server, advance } = await setup(t, { config: CONTROL });
+  await createAll(gladys);
+  // The panel does not apply the toggle at once.
   server.lagging = true;
   assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
-  const second = await set(gladys, IQ, 'pool-pump', 0);
-  assert.equal(second.success, false);
-  assert.match(second.error, /vient d'être commandé/);
+  // "off" again: already asked, nothing sent.
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
+  // "on": the old state, a toggle would undo the first one.
+  const back = await set(gladys, IQ, 'pool-pump', 1);
+  assert.equal(back.success, false);
+  assert.match(back.error, /vient d'être commandé/);
   assert.equal(server.calls('set_pool_pump').length, 1);
-  // Once the guard expires, a new toggle is allowed.
+  // A read showing nothing keeps the guard: "off" is still the expected state.
+  server.home.pool_pump = '';
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
+  server.home.pool_pump = '1';
+  assert.equal((await set(gladys, IQ, 'pool-pump', 1)).success, false);
+  assert.equal(server.calls('set_pool_pump').length, 1);
+  // Expired after 60 s: the panel state decides again.
   await advance(TIMINGS.toggleGuard);
   assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
   assert.equal(server.calls('set_pool_pump').length, 2);
 });
 
-test('two commands received together: one toggle only', async (t) => {
-  const { gladys, server } = await setup(t);
+test('the guard ends as soon as the panel reports the change', async (t) => {
+  const { gladys, server } = await setup(t, { config: CONTROL });
   await createAll(gladys);
-  const results = await Promise.all([
-    set(gladys, IQ, 'pool-pump', 0),
-    set(gladys, IQ, 'pool-pump', 0),
-  ]);
-  assert.deepEqual(
-    results.map((r) => r.success),
-    [true, true],
-  );
-  assert.equal(server.calls('set_pool_pump').length, 1);
-  assert.equal(server.home.pool_pump, '0');
+  server.lagging = true;
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
+  server.home.pool_pump = '0';
+  assert.equal((await set(gladys, IQ, 'pool-pump', 1)).success, true);
+  assert.equal(server.calls('set_pool_pump').length, 2);
 });
 
-test('commands are refused when the panel is offline, or turned off in the configuration', async (t) => {
-  const { gladys, server } = await setup(t);
+test('no guard when the toggle was refused before reaching the panel', async (t) => {
+  const { gladys, server } = await setup(t, { config: CONTROL });
+  await createAll(gladys);
+  server.fail('set_pool_pump', 400);
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, false);
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
+  assert.equal(server.calls('set_pool_pump').length, 2);
+  // A toggle without answer may have reached the panel: guarded.
+  server.lagging = true;
+  server.fail('set_pool_pump', 503);
+  assert.equal((await set(gladys, IQ, 'pool-pump', 1)).success, false);
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, false);
+  assert.equal(server.calls('set_pool_pump').length, 3);
+});
+
+for (const [first, second] of [
+  [1, 0],
+  [0, 1],
+]) {
+  test(`two commands together on a lagging panel [${first}, ${second}]: one toggle at most`, async (t) => {
+    const { gladys, server } = await setup(t, { config: CONTROL });
+    await createAll(gladys);
+    server.lagging = true;
+    const results = await Promise.all([
+      set(gladys, IQ, 'pool-pump', first),
+      set(gladys, IQ, 'pool-pump', second),
+    ]);
+    assert.equal(server.calls('set_pool_pump').length, 1);
+    // The pump is on: "on" changes nothing, "off" toggles once; an "on"
+    // after the "off" would undo it, so it is refused.
+    assert.deepEqual(
+      results.map((r) => r.success),
+      first === 1 ? [true, true] : [true, false],
+    );
+  });
+}
+
+test('commands are refused when the panel is offline', async (t) => {
+  const { gladys, server } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   server.home.status = 'Offline';
   const offline = await set(gladys, IQ, 'pool-pump', 0);
   assert.equal(offline.success, false);
   assert.match(offline.error, /hors ligne/);
-  server.home.status = 'Online';
-  await gladys.fake.configUpdated({ ...CONFIG, allow_commands: false });
-  const before = server.requests.length;
-  const denied = await set(gladys, IQ, 'pool-pump', 0);
-  assert.equal(denied.success, false);
-  assert.match(denied.error, /désactivées/);
-  assert.equal(server.requests.length, before);
   assert.equal(server.calls('set_pool_pump').length, 0);
 });
 
 test('set points: both sent, the spa one first, within the range of the unit', async (t) => {
-  const { gladys, server } = await setup(t);
+  const { gladys, server } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   assert.equal((await set(gladys, IQ, 'pool-setpoint', 30.4)).success, true);
   const [temps] = server.calls('set_temps');
@@ -271,22 +331,62 @@ test('set points: both sent, the spa one first, within the range of the unit', a
   assert.equal(server.calls('set_temps').length, 1);
 });
 
-test('auxiliaries: a plain one toggles, lights take absolute values', async (t) => {
-  const { gladys, server } = await setup(t);
+test('a panel switched to Fahrenheit: values and set points converted, logged once', async (t) => {
+  const { gladys, server, advance, lines } = await setup(t, { config: CONTROL });
   await createAll(gladys);
-  assert.equal((await set(gladys, IQ, 'aux-1', 1)).success, true);
-  assert.equal(server.calls('set_aux_1').length, 1);
-  assert.equal(last(gladys, IQ, 'aux-1'), 1);
+  Object.assign(server.home, {
+    temp_scale: 'F',
+    pool_temp: '80.6',
+    pool_set_point: '82',
+    spa_set_point: '97',
+  });
+  await advance(60_000);
+  await advance(60_000);
+  assert.equal(last(gladys, IQ, 'pool-temperature'), 27);
+  assert.equal(featureOf(gladys, IQ, 'pool-temperature').unit, 'celsius');
+  assert.equal(lines.filter((l) => /now reports in °F/.test(l)).length, 1);
+  assert.equal((await set(gladys, IQ, 'pool-setpoint', 30)).success, true);
+  const temps = server.calls('set_temps').at(-1).query;
+  assert.deepEqual([temps.temp1, temps.temp2], ['97', '86']);
+});
+
+test('auxiliaries: lights without the auxiliary option, plain ones and valves with it', async (t) => {
+  const { gladys, server } = await setup(t, { config: CONTROL });
+  await createAll(gladys);
+  const denied = await set(gladys, IQ, 'aux-1', 1);
+  assert.equal(denied.success, false);
+  assert.match(denied.error, /vanne/);
+  assert.equal(server.calls('get_devices').length, 1, 'refused before any request');
+  // An on/off light toggles.
+  assert.equal((await set(gladys, IQ, 'aux-2', 0)).success, true);
+  assert.equal(server.calls('set_aux_2').length, 1);
   assert.equal((await set(gladys, IQ, 'aux-3-brightness', 60)).success, true);
   assert.deepEqual(server.calls('set_light').at(-1).query.light, '50');
   assert.equal((await set(gladys, IQ, 'aux-4', 1)).success, true);
   const color = server.calls('set_light').at(-1).query;
   assert.deepEqual([color.aux, color.light, color.subtype], ['4', '1', '5']);
   assert.equal(last(gladys, IQ, 'aux-4'), 1);
+  await gladys.fake.configUpdated(AUX);
+  assert.equal((await set(gladys, IQ, 'aux-1', 1)).success, true);
+  assert.equal(server.calls('set_aux_1').length, 1);
+});
+
+test('a valve actuator (type 3) is a switch commanded only with the auxiliary option', async (t) => {
+  const server = fakeCloud();
+  server.aux.push(['aux_5', '0', 'Spillover', '3', '0']);
+  const { gladys } = await setup(t, { server, config: CONTROL });
+  await createAll(gladys);
+  assert.equal(featureOf(gladys, IQ, 'aux-5').category, 'switch');
+  const denied = await set(gladys, IQ, 'aux-5', 1);
+  assert.equal(denied.success, false);
+  assert.equal(server.calls('set_aux_5').length, 0);
+  await gladys.fake.configUpdated(AUX);
+  assert.equal((await set(gladys, IQ, 'aux-5', 1)).success, true);
+  assert.equal(server.calls('set_aux_5').length, 1);
 });
 
 test('eXO: absolute desired states, read just before, nothing sent when already right', async (t) => {
-  const { gladys, server } = await setup(t);
+  const { gladys, server } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   const before = server.requests.length;
   assert.equal((await set(gladys, EXO, 'production', 0)).success, true);
@@ -302,7 +402,24 @@ test('eXO: absolute desired states, read just before, nothing sent when already 
   const out = await set(gladys, EXO, 'heating-setpoint', 35);
   assert.equal(out.success, false);
   assert.match(out.error, /entre 15 et 32/);
+  // An aux output needs the auxiliary option; an unknown state is refused.
+  assert.equal((await set(gladys, EXO, 'aux-2', 1)).success, false);
+  delete server.shadow.state.reported.equipment.swc_0.boost;
+  const unknown = await set(gladys, EXO, 'boost', 1);
+  assert.equal(unknown.success, false);
+  assert.match(unknown.error, /n'a pas pu être lu/);
   assert.equal(server.calls('desire').length, 2);
+});
+
+test('a 429 answering a command pauses the reads and the commands', async (t) => {
+  const { gladys, server, app } = await setup(t, { config: CONTROL });
+  await createAll(gladys);
+  server.fail('set_pool_pump', 429, { headers: { 'retry-after': '300' } });
+  const limited = await set(gladys, IQ, 'pool-pump', 0);
+  assert.equal(limited.success, false);
+  assert.match(limited.error, /trop de requêtes/);
+  assert.equal(app.pausedUntil, Date.now() + 300_000);
+  assert.match((await set(gladys, IQ, 'pool-pump', 0)).error, /ralentir/);
 });
 
 test('refused credentials: no new sign-in for hours, at once after a change', async (t) => {
@@ -336,7 +453,7 @@ test('429: a pause from Retry-After, the scan does not read during it', async (t
 });
 
 test('429 during the reads: commands are refused until the pause ends', async (t) => {
-  const { gladys, server, advance } = await setup(t);
+  const { gladys, server, advance } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   server.fail('get_home', 429);
   await advance(60_000);
@@ -417,8 +534,53 @@ test('the test button: a summary, a cooldown, a refused password retried at once
   assert.match(again.data.message.en, /less than 30 seconds/);
 });
 
+test('a state read too slowly for the 5 s ack: refused, nothing toggled', async (t) => {
+  const { gladys, server } = await setup(t, { config: CONTROL });
+  await createAll(gladys);
+  server.beforeAnswer = (call) => {
+    if (call.name === 'get_home') {
+      server.beforeAnswer = undefined;
+      t.mock.timers.tick(TIMINGS.commandReadDeadline + 500);
+    }
+  };
+  const slow = await set(gladys, IQ, 'pool-pump', 0);
+  assert.equal(slow.success, false);
+  assert.match(slow.error, /trop lentement/);
+  assert.equal(server.calls('set_pool_pump').length, 0);
+  assert.equal((await set(gladys, IQ, 'pool-pump', 0)).success, true);
+});
+
+test('a system missing from one device list keeps its entry in /data', async (t) => {
+  const store = memoryStore();
+  const server = fakeCloud();
+  const { gladys, advance } = await setup(t, { server, store });
+  server.systems = server.systems.filter((s) => s.serial_number !== EXO);
+  await gladys.fake.scanRequest();
+  await advance(30_000);
+  await gladys.fake.scanRequest();
+  server.home.ph = '7.3';
+  await advance(60_000);
+  assert.ok(store.data.systems[IQ].features.includes('ph'));
+  assert.ok(store.data.systems[EXO].features.includes('production'), 'kept');
+});
+
+test('three failed sign-ins in a row: a long pause', async (t) => {
+  const server = fakeCloud();
+  server.fail('login', 503, { times: 5 });
+  const { gladys, advance } = await setup(t, { server });
+  await advance(60_000);
+  await advance(2 * 60_000);
+  assert.equal(server.calls('login').length, 3);
+  assert.match(
+    gladys.fake.connectionStatus.message.en,
+    /failed several times in a row: next try in 6 h/,
+  );
+  await advance(30 * 60_000);
+  assert.equal(server.calls('login').length, 3);
+});
+
 test('no secret in the logs', async (t) => {
-  const { gladys, lines, server } = await setup(t);
+  const { gladys, lines, server } = await setup(t, { config: CONTROL });
   await createAll(gladys);
   await set(gladys, IQ, 'pool-pump', 0);
   server.expireTokens();

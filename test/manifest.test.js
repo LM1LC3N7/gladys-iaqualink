@@ -77,6 +77,9 @@ test('the configuration matches the code', () => {
   }
   assert.equal(fields.password.type, 'secret', 'the password is never sent back to the browser');
   assert.equal(fields.email.required, true);
+  // Read-only at installation; the auxiliaries (which may drive a valve) need a second opt-in.
+  assert.equal(fields.allow_commands.default, false);
+  assert.equal(fields.allow_aux_commands.default, false);
   assert.deepEqual(
     [fields.refresh_interval.min, fields.refresh_interval.max],
     [REFRESH_INTERVAL.min, REFRESH_INTERVAL.max],

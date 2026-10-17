@@ -27,7 +27,7 @@ export function fileStore(path = STATE_FILE) {
   };
 }
 
-const KINDS = ['switch', 'light', 'dimmer', 'color'];
+const KINDS = ['switch', 'valve', 'light', 'dimmer', 'color'];
 const str = (value) => (typeof value === 'string' ? value : '');
 
 /** The `seen` of one system, from its persisted form (repaired). */

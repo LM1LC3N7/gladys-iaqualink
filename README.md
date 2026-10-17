@@ -43,13 +43,17 @@ Gladys ⇄ SDK ⇄ src/handlers.js ⇄ src/app.js (IaqualinkApp) ⇄ src/iaquali
   keys frozen (see TODO.md "Decisions"). The features only grow and are kept in
   `/data/iaqualink-state.json` with the temperature unit, frozen at the first
   reading.
-- **Commands**: one at a time per system, after reading the state again.
-  Panel pumps, heaters and plain auxiliaries are toggles: refused when the
-  state is unknown or the panel offline, skipped when already right, and a
-  second toggle of the same equipment is refused for 30 s unless the panel
-  reports the change. Lights (`set_light`), set points (`set_temps`, both at
-  once; `setpoint_hpm_temp` with a heat pump) and the eXO (desired state) take
-  absolute values. The `allow_commands` option turns every command off.
+- **Commands**: off by default (`allow_commands`); the plain auxiliaries,
+  valve actuators (type 3) and eXO aux outputs need `allow_aux_commands` too,
+  since they may drive a valve. One at a time per system, after reading the
+  state again (no gap, 4 s at most, the ack of Gladys waits 5 s). Panel pumps,
+  heaters and plain auxiliaries are toggles: refused when the state is unknown
+  or the panel offline, skipped when already right; for 60 s after a toggle
+  (counted from the end of its request) the equipment is expected in the other
+  state, unless the panel reports it sooner. Lights (`set_light`), set points
+  (`set_temps`, both at once; `setpoint_hpm_temp` with a heat pump; converted
+  when the panel changed its scale) and the eXO (desired state) take absolute
+  values.
 
 ## Development
 

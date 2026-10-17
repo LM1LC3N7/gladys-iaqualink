@@ -11,7 +11,8 @@ test('defaults', () => {
     email: '',
     password: '',
     refreshInterval: 60,
-    allowCommands: true,
+    allowCommands: false,
+    allowAuxCommands: false,
     includeUnnamedAux: false,
     language: 'fr',
   });

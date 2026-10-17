@@ -31,6 +31,10 @@ export const loginAnswer = (n, { refreshToken = 'refresh-1', expiresIn = 3600 } 
   cognitoPool: { appClientId: 'app-client' },
 });
 
+/** A 401 answered as an HTML page (API Gateway / a proxy), not as JSON. */
+export const UNAUTHORIZED_HTML =
+  '<html><head><title>401 Authorization Required</title></head><body><h1>401 Authorization Required</h1></body></html>';
+
 export const SYSTEMS = [
   {
     id: 1,
