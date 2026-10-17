@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-17
+
 ### Changed
 
 - LICENSE: standard Apache-2.0 appendix line, without a personal name.
@@ -44,5 +46,6 @@ the notes of the version's GitHub Release.
 - Transport badges, a "Test the connection" button, feature names in French
   or English.
 
-[Unreleased]: https://github.com/LM1LC3N7/gladys-iaqualink/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/LM1LC3N7/gladys-iaqualink/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/LM1LC3N7/gladys-iaqualink/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/LM1LC3N7/gladys-iaqualink/releases/tag/v0.1.1
