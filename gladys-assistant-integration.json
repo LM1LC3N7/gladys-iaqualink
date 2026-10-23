@@ -6,8 +6,8 @@
     "en": "Zodiac / Jandy iAquaLink pools: temperatures, pumps, heating, lights, eXO chlorinators.",
     "fr": "Piscines Zodiac / Jandy iAquaLink : températures, pompes, chauffage, éclairage, électrolyseurs eXO."
   },
-  "version": "0.1.2",
-  "docker_image": "ghcr.io/lm1lc3n7/gladys-iaqualink:0.1.2",
+  "version": "0.1.3",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-iaqualink:0.1.3",
   "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-iaqualink/main/cover.png",
   "categories": ["appliances", "environment"],

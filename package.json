@@ -1,6 +1,6 @@
 {
   "name": "gladys-iaqualink",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Gladys Assistant external integration for Zodiac / Jandy iAquaLink pool systems (iAquaLink panels, eXO iQ chlorinators), through the iAquaLink cloud. Unofficial, not affiliated with Zodiac, Jandy or Fluidra.",
   "type": "module",
